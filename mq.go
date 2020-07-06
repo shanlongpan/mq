@@ -6,8 +6,6 @@ package mq
 
 import (
 	"context"
-	"fmt"
-	"sync"
 )
 
 type Options struct {
@@ -66,21 +64,20 @@ func Retries(retries int) Option {
 var DefaultConsumeMq Mq
 var DefaultProducerMq Mq
 
-var onceConsume sync.Once
-var onceProduce sync.Once
-
-func initConsumer() error {
+func initConsumer(opt ...Option) error {
 	var err error
-	DefaultConsumeMq, err = NewConsumerGroup(Addrs("127.0.0.1:9092", "127.0.0.1:9093", "127.0.0.1:9094"), Ver("2.3.1"), GroupId("consume-1"), Retries(3))
+	// DefaultConsumeMq, err = NewConsumerGroup(Addrs("127.0.0.1:9092", "127.0.0.1:9093", "127.0.0.1:9094"), Ver("2.3.1"), GroupId("consume-1"), Retries(3))
+	DefaultConsumeMq, err = NewConsumerGroup(opt...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func initProduce() error {
+func initProduce(opt ...Option) error {
 	var err error
-	DefaultProducerMq, err = NewKafkaProducer(Addrs("127.0.0.1:9092", "127.0.0.1:9093", "127.0.0.1:9094"), Ver("2.3.1"))
+	// DefaultProducerMq, err = NewKafkaProducer(Addrs("127.0.0.1:9092", "127.0.0.1:9093", "127.0.0.1:9094"), Ver("2.3.1"))
+	DefaultProducerMq, err = NewKafkaProducer(opt...)
 	if err != nil {
 		return err
 	}
@@ -88,20 +85,10 @@ func initProduce() error {
 }
 
 func WriteMsg(ctx context.Context, topic string, key string, value interface{}) error {
-	onceProduce.Do(func() {
-		err := initProduce()
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
+
 	return DefaultProducerMq.Produce(ctx, topic, key, value)
 }
 func Consume(ctx context.Context, topic string, mqHander HandlerMq) error {
-	onceConsume.Do(func() {
-		err := initConsumer()
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
+
 	return DefaultConsumeMq.Consume(ctx, topic, mqHander)
 }
